@@ -91,10 +91,18 @@ function urlReroute() {
   reroute([], arguments);
 }
 
+/**
+ * 通过装饰器模式，增强pushstate和replacestate方法，除了原生的操作历史记录，还会调用reroute
+ * @param {*} updateState window.history.pushstate/replacestate
+ * @param {*} methodName 'pushstate' or 'replacestate'
+ */
 function patchedUpdateState(updateState, methodName) {
   return function () {
+    // 当前url
     const urlBefore = window.location.href;
+    // pushstate或者replacestate的执行结果
     const result = updateState.apply(this, arguments);
+    // pushstate或replacestate执行后的url地址
     const urlAfter = window.location.href;
 
     if (!urlRerouteOnly || urlBefore !== urlAfter) {
@@ -136,30 +144,41 @@ function createPopStateEvent(state, originalMethodName) {
   return evt;
 }
 
+/**
+ * 监听路由变化
+ */
 if (isInBrowser) {
   // We will trigger an app change for any routing events.
   window.addEventListener("hashchange", urlReroute);
   window.addEventListener("popstate", urlReroute);
 
   // Monkeypatch addEventListener so that we can ensure correct timing
+  /**
+   * 扩展原生的addEventListener和removeEventListener方法
+   * 每次注册事件和事件处理函数都会将事件和处理函数保存下来，当然移除时也会做删除
+   * */
   const originalAddEventListener = window.addEventListener;
   const originalRemoveEventListener = window.removeEventListener;
   window.addEventListener = function (eventName, fn) {
     if (typeof fn === "function") {
       if (
+        // eventName只能是hashchange或popstate && 对应事件的fn注册函数没有注册
         routingEventsListeningTo.indexOf(eventName) >= 0 &&
         !find(capturedEventListeners[eventName], (listener) => listener === fn)
       ) {
+        // 注册（保存）eventName 事件的处理函数
         capturedEventListeners[eventName].push(fn);
         return;
       }
     }
 
+    // 原生方法
     return originalAddEventListener.apply(this, arguments);
   };
 
   window.removeEventListener = function (eventName, listenerFn) {
     if (typeof listenerFn === "function") {
+      // 从captureEventListeners数组中移除eventName事件指定的事件处理函数
       if (routingEventsListeningTo.indexOf(eventName) >= 0) {
         capturedEventListeners[eventName] = capturedEventListeners[
           eventName
@@ -171,6 +190,7 @@ if (isInBrowser) {
     return originalRemoveEventListener.apply(this, arguments);
   };
 
+  // 增强pushstate和replacestate
   window.history.pushState = patchedUpdateState(
     window.history.pushState,
     "pushState"
@@ -189,8 +209,10 @@ if (isInBrowser) {
       )
     );
   } else {
-    /* For convenience in `onclick` attributes, we expose a global function for navigating to
+    /*
+     * For convenience in `onclick` attributes, we expose a global function for navigating to
      * whatever an <a> tag's href is.
+     * singleSpa暴露出来的一个全局方法，用户也可以基于它去判断子应用是运行在基座应用上还是独立运行
      */
     window.singleSpaNavigate = navigateToUrl;
   }

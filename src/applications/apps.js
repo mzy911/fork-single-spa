@@ -26,38 +26,49 @@ import { assign } from "../utils/assign";
 const apps = [];
 
 export function getAppChanges() {
+  // 需要被移除的应用
   const appsToUnload = [],
+    // 需要被卸载的应用
     appsToUnmount = [],
+    // 需要被加载的应用
     appsToLoad = [],
+    // 需要被挂载的应用
     appsToMount = [];
 
   // We re-attempt to download applications in LOAD_ERROR after a timeout of 200 milliseconds
   const currentTime = new Date().getTime();
 
   apps.forEach((app) => {
+    // boolean，应用是否应该被激活
     const appShouldBeActive =
       app.status !== SKIP_BECAUSE_BROKEN && shouldBeActive(app);
 
     switch (app.status) {
+      // 需要被加载的应用
       case LOAD_ERROR:
         if (appShouldBeActive && currentTime - app.loadErrorTime >= 200) {
           appsToLoad.push(app);
         }
         break;
+      // 需要被加载的应用
       case NOT_LOADED:
       case LOADING_SOURCE_CODE:
         if (appShouldBeActive) {
           appsToLoad.push(app);
         }
         break;
+      // 状态为xx的应用
       case NOT_BOOTSTRAPPED:
       case NOT_MOUNTED:
         if (!appShouldBeActive && getAppUnloadInfo(toName(app))) {
+          // 需要被移除的应用
           appsToUnload.push(app);
         } else if (appShouldBeActive) {
+          // 需要被挂载的应用
           appsToMount.push(app);
         }
         break;
+      // 需要被卸载的应用，已经处于挂载状态，但现在路由已经变了的应用需要被卸载
       case MOUNTED:
         if (!appShouldBeActive) {
           appsToUnmount.push(app);
@@ -88,12 +99,35 @@ export function getAppStatus(appName) {
   return app ? app.status : null;
 }
 
+/**
+ * 注册子应用：两种方式
+ * registerApplication('app1', loadApp(url), activeWhen('/app1'), customProps)
+ * registerApplication({
+ *    name: 'app1',
+ *    app: loadApp(url),
+ *    activeWhen: activeWhen('/app1'),
+ *    customProps: {}
+ * })
+ * @param {*} appNameOrConfig 应用名称或者应用配置对象
+ * @param {*} appOrLoadApp 应用的加载方法，是一个 promise
+ * @param {*} activeWhen 判断应用是否激活的一个方法，方法返回 true or false
+ * @param {*} customProps 传递给子应用的 props 对象
+ */
 export function registerApplication(
   appNameOrConfig,
   appOrLoadApp,
   activeWhen,
   customProps
 ) {
+  /**
+   * 格式化用户传递的应用配置参数
+   * registration = {
+   *    name: 'app1',
+   *    loadApp: 返回promise的函数,
+   *    activeWhen: 返回boolean值的函数,
+   *    customProps: {},
+   * }
+   */
   const registration = sanitizeArguments(
     appNameOrConfig,
     appOrLoadApp,
@@ -101,6 +135,7 @@ export function registerApplication(
     customProps
   );
 
+  // 判断应用是否重名
   if (getAppNames().indexOf(registration.name) !== -1)
     throw Error(
       formatErrorMessage(
@@ -111,10 +146,13 @@ export function registerApplication(
       )
     );
 
+  // 将各个应用的配置信息都存放到 apps 数组中
   apps.push(
+    // 给每个应用增加一个内置属性
     assign(
       {
         loadErrorTime: null,
+        // 最重要的，应用的状态
         status: NOT_LOADED,
         parcels: {},
         devtools: {
@@ -128,7 +166,10 @@ export function registerApplication(
     )
   );
 
+  // 浏览器环境运行
   if (isInBrowser) {
+    // https://zh-hans.single-spa.js.org/docs/api#ensurejquerysupport
+    // 如果页面中使用了jQuery，则给jQuery打patch
     ensureJQuerySupport();
     reroute();
   }
@@ -226,6 +267,7 @@ function immediatelyUnloadApp(app, resolve, reject) {
     .catch(reject);
 }
 
+// 验证四个参数是否合法
 function validateRegisterWithArguments(
   name,
   appOrLoadApp,
@@ -269,7 +311,12 @@ function validateRegisterWithArguments(
     );
 }
 
+/**
+ * 验证应用配置对象的各个属性是否存在不合法的情况，存在则抛出错误
+ * @param {*} config = { name: 'app1', app: function, activeWhen: function, customProps: {} }
+ */
 export function validateRegisterWithConfig(config) {
+  // 异常判断，应用的配置对象不能是数组或者null
   if (Array.isArray(config) || config === null)
     throw Error(
       formatErrorMessage(
@@ -277,12 +324,16 @@ export function validateRegisterWithConfig(config) {
         __DEV__ && "Configuration object can't be an Array or null!"
       )
     );
+
+  // 配置对象只能包括这四个key
   const validKeys = ["name", "app", "activeWhen", "customProps"];
+  // 找到配置对象存在的无效的key
   const invalidKeys = Object.keys(config).reduce(
     (invalidKeys, prop) =>
       validKeys.indexOf(prop) >= 0 ? invalidKeys : invalidKeys.concat(prop),
     []
   );
+  // 如果存在无效的key，则抛出一个错误
   if (invalidKeys.length !== 0)
     throw Error(
       formatErrorMessage(
@@ -295,6 +346,7 @@ export function validateRegisterWithConfig(config) {
         invalidKeys.join(", ")
       )
     );
+  // 验证应用名称，只能是字符串，且不能为空
   if (typeof config.name !== "string" || config.name.length === 0)
     throw Error(
       formatErrorMessage(
@@ -303,6 +355,10 @@ export function validateRegisterWithConfig(config) {
           "The config.name on registerApplication must be a non-empty string"
       )
     );
+  // app 属性只能是一个对象或者函数
+  // 对象是一个已被解析过的对象，是一个包含各个生命周期的对象；
+  // 加载函数必须返回一个 promise
+  // 以上信息在官方文档中有提到：https://zh-hans.single-spa.js.org/docs/configuration
   if (typeof config.app !== "object" && typeof config.app !== "function")
     throw Error(
       formatErrorMessage(
@@ -311,6 +367,7 @@ export function validateRegisterWithConfig(config) {
           "The config.app on registerApplication must be an application or a loading function"
       )
     );
+  // 第三个参数，可以是一个字符串，也可以是一个函数，也可以是两者组成的一个数组，表示当前应该被激活的应用的baseURL
   const allowsStringAndFunction = (activeWhen) =>
     typeof activeWhen === "string" || typeof activeWhen === "function";
   if (
@@ -327,6 +384,7 @@ export function validateRegisterWithConfig(config) {
           "The config.activeWhen on registerApplication must be a string, function or an array with both"
       )
     );
+  // 传递给子应用的props对象必须是一个对象
   if (!validCustomProps(config.customProps))
     throw Error(
       formatErrorMessage(
@@ -344,16 +402,33 @@ function validCustomProps(customProps) {
       customProps !== null &&
       !Array.isArray(customProps))
   );
+  // return (
+  //   !customProps ||
+  //   typeof customProps === "function" ||
+  //   (typeof customProps === "object" &&
+  //     customProps !== null &&
+  //     !Array.isArray(customProps))
+  // );
 }
 
+/**
+ * 格式化用户传递的子应用配置参数
+ * @param {*} appNameOrConfig 应用名称或者应用配置对象
+ * @param {*} appOrLoadApp 应用的加载方法，是一个 promise
+ * @param {*} activeWhen 判断应用是否激活的一个方法，方法返回 true or false
+ * @param {*} customProps 传递给子应用的 props 对象
+ * @returns {{activeWhen: null, customProps: null, name: null, loadApp: null}}
+ */
 function sanitizeArguments(
   appNameOrConfig,
   appOrLoadApp,
   activeWhen,
   customProps
 ) {
+  // 判断第一个参数是否为对象
   const usingObjectAPI = typeof appNameOrConfig === "object";
 
+  // 初始化应用配置对象
   const registration = {
     name: null,
     loadApp: null,
@@ -362,12 +437,14 @@ function sanitizeArguments(
   };
 
   if (usingObjectAPI) {
+    // 注册应用的时候传递的参数是对象
     validateRegisterWithConfig(appNameOrConfig);
     registration.name = appNameOrConfig.name;
     registration.loadApp = appNameOrConfig.app;
     registration.activeWhen = appNameOrConfig.activeWhen;
     registration.customProps = appNameOrConfig.customProps;
   } else {
+    // 参数列表
     validateRegisterWithArguments(
       appNameOrConfig,
       appOrLoadApp,
@@ -380,13 +457,17 @@ function sanitizeArguments(
     registration.customProps = customProps;
   }
 
+  // 如果第二个参数不是一个函数，比如是一个包含已经生命周期的对象，则包装成一个返回 promise 的函数
   registration.loadApp = sanitizeLoadApp(registration.loadApp);
+  // 如果用户没有提供 props 对象，则给一个默认的空对象
   registration.customProps = sanitizeCustomProps(registration.customProps);
+  // 保证activeWhen是一个返回boolean值的函数
   registration.activeWhen = sanitizeActiveWhen(registration.activeWhen);
 
   return registration;
 }
 
+// 保证第二个参数一定是一个返回 promise 的函数
 function sanitizeLoadApp(loadApp) {
   if (typeof loadApp !== "function") {
     return () => Promise.resolve(loadApp);
@@ -395,25 +476,33 @@ function sanitizeLoadApp(loadApp) {
   return loadApp;
 }
 
+// 保证 props 不为 undefined
 function sanitizeCustomProps(customProps) {
   return customProps ? customProps : {};
 }
 
+// 得到一个函数，函数负责判断浏览器当前地址是否和用户给定的baseURL相匹配，匹配返回true，否则返回false
 function sanitizeActiveWhen(activeWhen) {
+  // []
   let activeWhenArray = Array.isArray(activeWhen) ? activeWhen : [activeWhen];
+  // 保证数组中每个元素都是一个函数
   activeWhenArray = activeWhenArray.map((activeWhenOrPath) =>
     typeof activeWhenOrPath === "function"
       ? activeWhenOrPath
-      : pathToActiveWhen(activeWhenOrPath)
+      : // activeWhen如果是一个路径，则保证成一个函数
+        pathToActiveWhen(activeWhenOrPath)
   );
 
+  // 返回一个函数，函数返回一个 boolean 值
   return (location) =>
     activeWhenArray.some((activeWhen) => activeWhen(location));
 }
 
 export function pathToActiveWhen(path, exactMatch) {
+  // 根据用户提供的baseURL，生成正则表达式
   const regex = toDynamicPathValidatorRegex(path, exactMatch);
 
+  // 函数返回boolean值，判断当前路由是否匹配用户给定的路径
   return (location) => {
     // compatible with IE10
     let origin = location.origin;

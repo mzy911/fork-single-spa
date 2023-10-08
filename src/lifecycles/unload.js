@@ -11,16 +11,28 @@ import { reasonableTime } from "../applications/timeouts.js";
 
 const appsToUnload = {};
 
+/**
+ * 移除应用，就更改一下应用的状态，执行unload生命周期函数，执行清理操作
+ *
+ * 其实一般情况是不会执行移除操作的，除非你手动调用unloadApplication方法
+ * 单步调试会发现appsToUnload对象是个空对象，所以第一个if就return了，这里啥也没做
+ * https://zh-hans.single-spa.js.org/docs/api#unloadapplication
+ * */
 export function toUnloadPromise(app) {
   return Promise.resolve().then(() => {
     const unloadInfo = appsToUnload[toName(app)];
 
     if (!unloadInfo) {
-      /* No one has called unloadApplication for this app,
+      /*
+       * No one has called unloadApplication for this app,
+       * 不需要移除
+       * 一般情况下都不需要移除，只有在调用unloadApplication方法手动执行移除时才会
+       * 执行后面的内容
        */
       return app;
     }
 
+    // 已经卸载了，执行一些清理操作
     if (app.status === NOT_LOADED) {
       /* This app is already unloaded. We just need to clean up
        * anything that still thinks we need to unload the app.
@@ -29,6 +41,7 @@ export function toUnloadPromise(app) {
       return app;
     }
 
+    // 已经卸载了，执行一些清理操作
     if (app.status === UNLOADING) {
       /* Both unloadApplication and reroute want to unload this app.
        * It only needs to be done once, though.
@@ -47,8 +60,10 @@ export function toUnloadPromise(app) {
         ? Promise.resolve()
         : reasonableTime(app, "unload");
 
+    // 更改状态为 UNLOADING
     app.status = UNLOADING;
 
+    // 在合理的时间范围内执行生命周期函数
     return unloadPromise
       .then(() => {
         finishUnloadingApp(app, unloadInfo);
@@ -61,6 +76,8 @@ export function toUnloadPromise(app) {
   });
 }
 
+// 移除完成，执行一些清理动作，其实就是从appsToUnload数组中移除该app，移除生命周期函数，更改app.status
+// 但应用不是真的被移除，后面再激活时不需要重新去下载资源,，只是做一些状态上的变更，当然load的那个过程还是需要的，这点可能需要再确认一下
 function finishUnloadingApp(app, unloadInfo) {
   delete appsToUnload[toName(app)];
 

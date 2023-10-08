@@ -105,8 +105,16 @@ export function setUnloadMaxTime(time, dieOnTimeout, warningMillis) {
   };
 }
 
+/**
+ * 合理的时间，即生命周期函数合理的执行时间
+ * 在合理的时间内执行生命周期函数，并将函数的执行结果resolve出去
+ * @param {*} appOrParcel => app
+ * @param {*} lifecycle => 生命周期函数名
+ */
 export function reasonableTime(appOrParcel, lifecycle) {
+  // 应用的超时配置
   const timeoutConfig = appOrParcel.timeouts[lifecycle];
+  // 超时警告
   const warningPeriod = timeoutConfig.warningMillis;
   const type = objectType(appOrParcel);
 
@@ -114,6 +122,9 @@ export function reasonableTime(appOrParcel, lifecycle) {
     let finished = false;
     let errored = false;
 
+    // 这里很关键，之前一直奇怪props是怎么传递给子应用的，这里就是了，果然和之前的猜想是一样的
+    // 是在执行生命周期函数时像子应用传递的props，所以之前执行loadApp传递props不会到子应用，
+    // 那么设计估计是给用户自己处理props的一个机会吧，因为那个时候处理的props已经是{ ...customProps, ...内置props }
     appOrParcel[lifecycle](getProps(appOrParcel))
       .then((val) => {
         finished = true;
@@ -124,6 +135,7 @@ export function reasonableTime(appOrParcel, lifecycle) {
         reject(val);
       });
 
+    // 下面就没啥了，就是超时的一些提示信息
     setTimeout(() => maybeTimingOut(1), warningPeriod);
     setTimeout(() => maybeTimingOut(true), timeoutConfig.millis);
 
