@@ -25,21 +25,19 @@ import { assign } from "../utils/assign";
 
 const apps = [];
 
+// 返回所有状态下的微应用
 export function getAppChanges() {
-  // 需要被移除的应用
-  const appsToUnload = [],
-    // 需要被卸载的应用
-    appsToUnmount = [],
-    // 需要被加载的应用
-    appsToLoad = [],
-    // 需要被挂载的应用
-    appsToMount = [];
+  // 四种状态
+  const appsToUnload = [], // 需要被移除的应用
+    appsToUnmount = [], // 需要被卸载的应用
+    appsToLoad = [], // 需要被加载的应用
+    appsToMount = []; // 需要被挂载的应用
 
-  // We re-attempt to download applications in LOAD_ERROR after a timeout of 200 milliseconds
+  // 在 LOAD_ERROR 超时200毫秒后重新尝试下载应用程序
   const currentTime = new Date().getTime();
 
   apps.forEach((app) => {
-    // boolean，应用是否应该被激活
+    // 返回 boolean，判断应用是否应该被激活
     const appShouldBeActive =
       app.status !== SKIP_BECAUSE_BROKEN && shouldBeActive(app);
 
@@ -81,19 +79,22 @@ export function getAppChanges() {
   return { appsToUnload, appsToUnmount, appsToLoad, appsToMount };
 }
 
+// 返回当前激活状态下的微应用
 export function getMountedApps() {
   return apps.filter(isActive).map(toName);
 }
 
+// 返回所有微应用的名称
 export function getAppNames() {
   return apps.map(toName);
 }
 
-// used in devtools, not (currently) exposed as a single-spa API
+// 在devtools中使用，而不是(目前)暴露为单一spa API
 export function getRawAppData() {
   return [...apps];
 }
 
+// 返回查询微应用的状态
 export function getAppStatus(appName) {
   const app = find(apps, (app) => toName(app) === appName);
   return app ? app.status : null;
@@ -119,15 +120,7 @@ export function registerApplication(
   activeWhen,
   customProps
 ) {
-  /**
-   * 格式化用户传递的应用配置参数
-   * registration = {
-   *    name: 'app1',
-   *    loadApp: 返回promise的函数,
-   *    activeWhen: 返回boolean值的函数,
-   *    customProps: {},
-   * }
-   */
+  // 格式化用户传递的应用配置参数
   const registration = sanitizeArguments(
     appNameOrConfig,
     appOrLoadApp,
@@ -168,19 +161,21 @@ export function registerApplication(
 
   // 浏览器环境运行
   if (isInBrowser) {
-    // https://zh-hans.single-spa.js.org/docs/api#ensurejquerysupport
     // 如果页面中使用了jQuery，则给jQuery打patch
     ensureJQuerySupport();
     reroute();
   }
 }
 
+// 根据 location 返回相关微应用的名称
 export function checkActivityFunctions(location = window.location) {
   return apps.filter((app) => app.activeWhen(location)).map(toName);
 }
 
+// 未注册的应用
 export function unregisterApplication(appName) {
   if (apps.filter((app) => toName(app) === appName).length === 0) {
+    // appName 没有被注册过将会报错
     throw Error(
       formatErrorMessage(
         25,
@@ -191,12 +186,14 @@ export function unregisterApplication(appName) {
     );
   }
 
+  // 卸载微应用，并从 apps 中删除
   return unloadApplication(appName).then(() => {
     const appIndex = apps.map(toName).indexOf(appName);
     apps.splice(appIndex, 1);
   });
 }
 
+// 卸载微应用
 export function unloadApplication(appName, opts = { waitForUnmount: false }) {
   if (typeof appName !== "string") {
     throw Error(
@@ -206,6 +203,7 @@ export function unloadApplication(appName, opts = { waitForUnmount: false }) {
       )
     );
   }
+
   const app = find(apps, (App) => toName(App) === appName);
   if (!app) {
     throw Error(
@@ -218,32 +216,30 @@ export function unloadApplication(appName, opts = { waitForUnmount: false }) {
     );
   }
 
+  // 获取要被卸载微应用的info
   const appUnloadInfo = getAppUnloadInfo(toName(app));
-  if (opts && opts.waitForUnmount) {
-    // We need to wait for unmount before unloading the app
 
+  // 在卸载应用程序之前，我们需要等待unmount
+  if (opts && opts.waitForUnmount) {
     if (appUnloadInfo) {
-      // Someone else is already waiting for this, too
+      // 其他人也已经在等着这一刻了
       return appUnloadInfo.promise;
     } else {
-      // We're the first ones wanting the app to be resolved.
+      // 我们是第一个希望解决这个应用的人。
       const promise = new Promise((resolve, reject) => {
         addAppToUnload(app, () => promise, resolve, reject);
       });
       return promise;
     }
   } else {
-    /* We should unmount the app, unload it, and remount it immediately.
-     */
-
+    // 我们应该卸载应用程序，卸载它，然后立即重新安装。
     let resultPromise;
-
     if (appUnloadInfo) {
-      // Someone else is already waiting for this app to unload
+      // 其他人已经在等待这个应用程序卸载了
       resultPromise = appUnloadInfo.promise;
       immediatelyUnloadApp(app, appUnloadInfo.resolve, appUnloadInfo.reject);
     } else {
-      // We're the first ones wanting the app to be resolved.
+      // 我们是第一个希望解决这个应用的人。
       resultPromise = new Promise((resolve, reject) => {
         addAppToUnload(app, () => resultPromise, resolve, reject);
         immediatelyUnloadApp(app, resolve, reject);
@@ -254,6 +250,7 @@ export function unloadApplication(appName, opts = { waitForUnmount: false }) {
   }
 }
 
+// 立刻卸载当前微应用
 function immediatelyUnloadApp(app, resolve, reject) {
   toUnmountPromise(app)
     .then(toUnloadPromise)
@@ -394,6 +391,7 @@ export function validateRegisterWithConfig(config) {
     );
 }
 
+// 校验自定义属性
 function validCustomProps(customProps) {
   return (
     !customProps ||
@@ -402,13 +400,6 @@ function validCustomProps(customProps) {
       customProps !== null &&
       !Array.isArray(customProps))
   );
-  // return (
-  //   !customProps ||
-  //   typeof customProps === "function" ||
-  //   (typeof customProps === "object" &&
-  //     customProps !== null &&
-  //     !Array.isArray(customProps))
-  // );
 }
 
 /**
@@ -437,14 +428,14 @@ function sanitizeArguments(
   };
 
   if (usingObjectAPI) {
-    // 注册应用的时候传递的参数是对象
+    // 检验注册应用时传递的参数
     validateRegisterWithConfig(appNameOrConfig);
     registration.name = appNameOrConfig.name;
     registration.loadApp = appNameOrConfig.app;
     registration.activeWhen = appNameOrConfig.activeWhen;
     registration.customProps = appNameOrConfig.customProps;
   } else {
-    // 参数列表
+    // 检验注册应用时传递的参数
     validateRegisterWithArguments(
       appNameOrConfig,
       appOrLoadApp,
@@ -481,7 +472,8 @@ function sanitizeCustomProps(customProps) {
   return customProps ? customProps : {};
 }
 
-// 得到一个函数，函数负责判断浏览器当前地址是否和用户给定的baseURL相匹配，匹配返回true，否则返回false
+// 判断浏览器当前地址是否和用户给定的baseURL相匹配
+// 匹配返回true，否则返回false
 function sanitizeActiveWhen(activeWhen) {
   // []
   let activeWhenArray = Array.isArray(activeWhen) ? activeWhen : [activeWhen];
@@ -502,7 +494,7 @@ export function pathToActiveWhen(path, exactMatch) {
   // 根据用户提供的baseURL，生成正则表达式
   const regex = toDynamicPathValidatorRegex(path, exactMatch);
 
-  // 函数返回boolean值，判断当前路由是否匹配用户给定的路径
+  // 判断当前路由是否匹配用户给定的路径
   return (location) => {
     // compatible with IE10
     let origin = location.origin;
@@ -517,6 +509,7 @@ export function pathToActiveWhen(path, exactMatch) {
   };
 }
 
+// 动态校验 Path 路径
 function toDynamicPathValidatorRegex(path, exactMatch) {
   let lastIndex = 0,
     inDynamic = false,
@@ -549,17 +542,15 @@ function toDynamicPathValidatorRegex(path, exactMatch) {
     if (index === path.length) {
       if (inDynamic) {
         if (exactMatch) {
-          // Ensure exact match paths that end in a dynamic portion don't match
-          // urls with characters after a slash after the dynamic portion.
+          // 确保以动态部分结尾的精确匹配路径不匹配，动态部分后面有斜杠字符的url。
           regexStr += "$";
         }
       } else {
-        // For exact matches, expect no more characters. Otherwise, allow
-        // any characters.
+        // 对于精确匹配，期望没有更多的字符。否则，允许任何字符。
         const suffix = exactMatch ? "" : ".*";
 
         regexStr =
-          // use charAt instead as we could not use es6 method endsWith
+          // 使用charAt代替，因为我们不能使用es6方法endsWith
           regexStr.charAt(regexStr.length - 1) === "/"
             ? `${regexStr}${suffix}$`
             : `${regexStr}(/${suffix})?(#.*)?$`;
@@ -571,7 +562,6 @@ function toDynamicPathValidatorRegex(path, exactMatch) {
   }
 
   function escapeStrRegex(str) {
-    // borrowed from https://github.com/sindresorhus/escape-string-regexp/blob/master/index.js
     return str.replace(/[|\\{}()[\]^$+*?.]/g, "\\$&");
   }
 }

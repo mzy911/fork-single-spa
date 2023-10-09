@@ -33,6 +33,7 @@ const globalTimeoutConfig = {
   },
 };
 
+// 设置响应的最大超时时间
 export function setBootstrapMaxTime(time, dieOnTimeout, warningMillis) {
   if (typeof time !== "number" || time <= 0) {
     throw Error(
@@ -51,6 +52,7 @@ export function setBootstrapMaxTime(time, dieOnTimeout, warningMillis) {
   };
 }
 
+// 设置挂载的最大超时时间
 export function setMountMaxTime(time, dieOnTimeout, warningMillis) {
   if (typeof time !== "number" || time <= 0) {
     throw Error(
@@ -69,6 +71,7 @@ export function setMountMaxTime(time, dieOnTimeout, warningMillis) {
   };
 }
 
+// 设置卸载的最大超时时间
 export function setUnmountMaxTime(time, dieOnTimeout, warningMillis) {
   if (typeof time !== "number" || time <= 0) {
     throw Error(
@@ -87,6 +90,7 @@ export function setUnmountMaxTime(time, dieOnTimeout, warningMillis) {
   };
 }
 
+// 设置移除的最大超时时间
 export function setUnloadMaxTime(time, dieOnTimeout, warningMillis) {
   if (typeof time !== "number" || time <= 0) {
     throw Error(
@@ -174,6 +178,7 @@ export function reasonableTime(appOrParcel, lifecycle) {
   });
 }
 
+// 手动设置过期时间：bootstrap、mount、unmount...
 export function ensureValidAppTimeouts(timeouts) {
   const result = {};
 
