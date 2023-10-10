@@ -10,6 +10,7 @@ import {
 } from "../applications/app-errors.js";
 import { reasonableTime } from "../applications/timeouts.js";
 
+// 更新微应用
 export function toUpdatePromise(parcel) {
   return Promise.resolve().then(() => {
     if (parcel.status !== MOUNTED) {

@@ -12,46 +12,31 @@ import { reasonableTime } from "../applications/timeouts.js";
 const appsToUnload = {};
 
 /**
- * 移除应用，就更改一下应用的状态，执行unload生命周期函数，执行清理操作
- *
- * 其实一般情况是不会执行移除操作的，除非你手动调用unloadApplication方法
- * 单步调试会发现appsToUnload对象是个空对象，所以第一个if就return了，这里啥也没做
- * https://zh-hans.single-spa.js.org/docs/api#unloadapplication
+ * 1、移除应用
+ * 2、更改应用的状态
+ * 3、执行 unload 生命周期函数，执行清理操作
  * */
 export function toUnloadPromise(app) {
   return Promise.resolve().then(() => {
     const unloadInfo = appsToUnload[toName(app)];
 
+    // appsToUnload 中找不到应用、直接返回 app
     if (!unloadInfo) {
-      /*
-       * No one has called unloadApplication for this app,
-       * 不需要移除
-       * 一般情况下都不需要移除，只有在调用unloadApplication方法手动执行移除时才会
-       * 执行后面的内容
-       */
       return app;
     }
 
     // 已经卸载了，执行一些清理操作
     if (app.status === NOT_LOADED) {
-      /* This app is already unloaded. We just need to clean up
-       * anything that still thinks we need to unload the app.
-       */
       finishUnloadingApp(app, unloadInfo);
       return app;
     }
 
     // 已经卸载了，执行一些清理操作
     if (app.status === UNLOADING) {
-      /* Both unloadApplication and reroute want to unload this app.
-       * It only needs to be done once, though.
-       */
       return unloadInfo.promise.then(() => app);
     }
 
     if (app.status !== NOT_MOUNTED && app.status !== LOAD_ERROR) {
-      /* The app cannot be unloaded until it is unmounted.
-       */
       return app;
     }
 
@@ -76,29 +61,35 @@ export function toUnloadPromise(app) {
   });
 }
 
-// 移除完成，执行一些清理动作，其实就是从appsToUnload数组中移除该app，移除生命周期函数，更改app.status
-// 但应用不是真的被移除，后面再激活时不需要重新去下载资源,，只是做一些状态上的变更，当然load的那个过程还是需要的，这点可能需要再确认一下
+/**
+ * 1、移除完成，执行一些清理动作，其实就是从appsToUnload数组中移除该app
+ * 2、移除生命周期函数，更改 app.status
+ * 3、但应用不是真的被移除，后面再激活时不需要重新去下载资源,，只是做一些状态上的变更
+ * @param app
+ * @param unloadInfo
+ * */
 function finishUnloadingApp(app, unloadInfo) {
+  // 移除
   delete appsToUnload[toName(app)];
 
-  // Unloaded apps don't have lifecycles
+  // 移除生命周期函数
   delete app.bootstrap;
   delete app.mount;
   delete app.unmount;
   delete app.unload;
 
+  // 更改状态
   app.status = NOT_LOADED;
 
-  /* resolve the promise of whoever called unloadApplication.
-   * This should be done after all other cleanup/bookkeeping
-   */
+  // 调用 unloadApplication
   unloadInfo.resolve();
 }
 
+// 卸载失败
 function errorUnloadingApp(app, unloadInfo, err) {
   delete appsToUnload[toName(app)];
 
-  // Unloaded apps don't have lifecycles
+  // 移除生命周期函数
   delete app.bootstrap;
   delete app.mount;
   delete app.unmount;
@@ -108,6 +99,7 @@ function errorUnloadingApp(app, unloadInfo, err) {
   unloadInfo.reject(err);
 }
 
+// 将要准备移除的应用添加到 appsToUnload 的对象上
 export function addAppToUnload(app, promiseGetter, resolve, reject) {
   appsToUnload[toName(app)] = { app, resolve, reject };
   Object.defineProperty(appsToUnload[toName(app)], "promise", {
@@ -115,6 +107,7 @@ export function addAppToUnload(app, promiseGetter, resolve, reject) {
   });
 }
 
+// 获取将要准备移除的应用的 Info
 export function getAppUnloadInfo(appName) {
   return appsToUnload[appName];
 }

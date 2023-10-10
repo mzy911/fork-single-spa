@@ -20,6 +20,7 @@ export function start(opts) {
   }
 }
 
+// 是否启动了
 export function isStarted() {
   return started;
 }

@@ -11,23 +11,31 @@ import { toUnmountPromise } from "./unmount.js";
 let beforeFirstMountFired = false;
 let firstMountFired = false;
 
-// 挂载app，执行mount生命周期函数，并更改app.status
+/**
+ * 执行 mount 生命周期函数
+ * @param appOrParcel
+ * @param hardFail
+ * @returns {Promise<void>}
+ */
 export function toMountPromise(appOrParcel, hardFail) {
   return Promise.resolve().then(() => {
+    // 已经挂载过，直接返回
     if (appOrParcel.status !== NOT_MOUNTED) {
       return appOrParcel;
     }
 
+    // 首次挂载前执行 "single-spa:before-first-mount" 事件
     if (!beforeFirstMountFired) {
       window.dispatchEvent(new CustomEvent("single-spa:before-first-mount"));
       beforeFirstMountFired = true;
     }
 
+    // 执行挂载函数
     return reasonableTime(appOrParcel, "mount")
       .then(() => {
         appOrParcel.status = MOUNTED;
 
-        // single-spa其实在不同的阶段提供了相应的自定义事件，让用户可以做一些事情
+        // single-spa 其实在不同的阶段提供了相应的自定义事件，让用户可以做一些事情
         if (!firstMountFired) {
           window.dispatchEvent(new CustomEvent("single-spa:first-mount"));
           firstMountFired = true;
@@ -36,9 +44,7 @@ export function toMountPromise(appOrParcel, hardFail) {
         return appOrParcel;
       })
       .catch((err) => {
-        // If we fail to mount the appOrParcel, we should attempt to unmount it before putting in SKIP_BECAUSE_BROKEN
-        // We temporarily put the appOrParcel into MOUNTED status so that toUnmountPromise actually attempts to unmount it
-        // instead of just doing a no-op.
+        // 如果我们挂载appOrParcel失败，我们应该在放入SKIP_BECAUSE_BROKEN之前尝试卸载它
         appOrParcel.status = MOUNTED;
         return toUnmountPromise(appOrParcel, true).then(
           setSkipBecauseBroken,

@@ -34,7 +34,7 @@ export function toName(app) {
   return app.name;
 }
 
-// 判断是否微 parcel 形式
+// 判断是否为 parcel 形式
 export function isParcel(appOrParcel) {
   return Boolean(appOrParcel.unmountThisParcel);
 }

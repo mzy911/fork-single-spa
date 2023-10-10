@@ -23,6 +23,7 @@ import { formatErrorMessage } from "./app-errors.js";
 import { isInBrowser } from "../utils/runtime-environment.js";
 import { assign } from "../utils/assign";
 
+// 注册的所有微应用
 const apps = [];
 
 // 返回所有状态下的微应用
@@ -172,7 +173,7 @@ export function checkActivityFunctions(location = window.location) {
   return apps.filter((app) => app.activeWhen(location)).map(toName);
 }
 
-// 未注册的应用
+// 卸载、删除注册的微应用
 export function unregisterApplication(appName) {
   if (apps.filter((app) => toName(app) === appName).length === 0) {
     // appName 没有被注册过将会报错

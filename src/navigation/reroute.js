@@ -25,12 +25,11 @@ import {
 import { assign } from "../utils/assign.js";
 import { isInBrowser } from "../utils/runtime-environment.js";
 
-let appChangeUnderway = false,
-  peopleWaitingOnAppChange = [],
+let appChangeUnderway = false, // 应用变更进行中
+  peopleWaitingOnAppChange = [], // 等待变更的应用
   currentUrl = isInBrowser && window.location.href;
 
 export function triggerAppChange() {
-  // Call reroute with no arguments, intentionally
   return reroute();
 }
 
@@ -44,9 +43,7 @@ export function triggerAppChange() {
  * @param {*} eventArguments
  */
 export function reroute(pendingPromises = [], eventArguments) {
-  // 应用正在切换，这个状态会在执行performAppChanges之前置为true，执行结束之后再置为false
-  // 如果在中间用户重新切换路由了，即走这个if分支，暂时看起来就在数组中存储了一些信息，没看到有什么用
-  // 字面意思理解就是用户等待app切换
+  // 有应用正在切换，新增变更添加到 peopleWaitingOnAppChange 中
   if (appChangeUnderway) {
     return new Promise((resolve, reject) => {
       peopleWaitingOnAppChange.push({
@@ -64,15 +61,17 @@ export function reroute(pendingPromises = [], eventArguments) {
     appsToLoad, // 需要被加载的
     appsToMount, // 需要被挂载的
   } = getAppChanges();
+
   let appsThatChanged,
     navigationIsCanceled = false,
     oldUrl = currentUrl,
     newUrl = (currentUrl = window.location.href);
 
-  // 是否已经执行 start 方法
+  // 切换操作、非首次加载
   if (isStarted()) {
-    // 已执行
+    // 开始切换新的应用
     appChangeUnderway = true;
+
     // 所有需要被改变的的应用
     appsThatChanged = appsToUnload.concat(
       appsToLoad,
@@ -82,9 +81,10 @@ export function reroute(pendingPromises = [], eventArguments) {
     // 执行改变
     return performAppChanges();
   } else {
-    // 未执行
+    // 去加载
     appsThatChanged = appsToLoad;
-    // 加载Apps
+
+    // 加载 Apps
     return loadApps();
   }
 
@@ -102,7 +102,7 @@ export function reroute(pendingPromises = [], eventArguments) {
         // 保证所有加载子应用的微任务执行完成
         Promise.all(loadPromises)
           .then(callAllEventListeners)
-          // there are no mounted apps, before start() is called, so we always return []
+          // 在调用start()之前，没有挂载的应用程序，所以我们总是返回[]
           .then(() => [])
           .catch((err) => {
             callAllEventListeners();
@@ -114,8 +114,6 @@ export function reroute(pendingPromises = [], eventArguments) {
 
   function performAppChanges() {
     return Promise.resolve().then(() => {
-      // https://github.com/single-spa/single-spa/issues/545
-      // 自定义事件，在应用状态发生改变之前可触发，给用户提供搞事情的机会
       window.dispatchEvent(
         new CustomEvent(
           appsThatChanged.length === 0
@@ -143,8 +141,8 @@ export function reroute(pendingPromises = [], eventArguments) {
         navigateToUrl(oldUrl);
         return;
       }
-      // 移除应用 => 更改应用状态，执行unload生命周期函数，执行一些清理动作
-      // 其实一般情况下这里没有真的移除应用
+
+      // 移除应用
       const unloadPromises = appsToUnload.map(toUnloadPromise);
 
       // 卸载应用，更改状态，执行unmount生命周期函数
@@ -167,13 +165,7 @@ export function reroute(pendingPromises = [], eventArguments) {
         );
       });
 
-      /*
-       * We load and bootstrap apps while other apps are unmounting, but we
-       * wait to mount the app until all apps are finishing unmounting
-       * 这个原因其实是因为这些操作都是通过注册不同的微任务实现的，而JS是单线程执行，
-       * 所以自然后续的只能等待前面的执行完了才能执行
-       * 这里一般情况下其实不会执行，只有手动执行了unloadApplication方法才会二次加载
-       */
+      // 等到所有应用都卸载完成后才挂载应用、因为 JS 是单线程的
       const loadThenMountPromises = appsToLoad.map((app) => {
         return toLoadPromise(app).then((app) =>
           tryToBootstrapAndMount(app, unmountAllPromise)
@@ -181,9 +173,8 @@ export function reroute(pendingPromises = [], eventArguments) {
       });
 
       /*
-       * These are the apps that are already bootstrapped and just need
-       * to be mounted. They each wait for all unmounting apps to finish up
-       * before they mount.
+       * 这些应用程序已经启动，只是需要被安装。
+       * 他们各自等待所有卸载应用程序完成在他们挂载之前。
        * 初始化和挂载app，其实做的事情很简单，就是改变app.status，执行生命周期函数
        * 当然这里的初始化和挂载其实是前后脚一起完成的(只要中间用户没有切换路由)
        */
@@ -200,12 +191,8 @@ export function reroute(pendingPromises = [], eventArguments) {
           throw err;
         })
         .then(() => {
-          /* Now that the apps that needed to be unmounted are unmounted, their DOM navigation
-           * events (like hashchange or popstate) should have been cleaned up. So it's safe
-           * to let the remaining captured event listeners to handle about the DOM event.
-           */
+          // 现在需要卸载的应用程序已经卸载了，它们的DOM导航也被卸载了。 让剩余捕获的事件监听器处理DOM事件。
           callAllEventListeners();
-
           return Promise.all(loadThenMountPromises.concat(mountPromises))
             .catch((err) => {
               pendingPromises.forEach((promise) => promise.reject(err));
@@ -232,26 +219,15 @@ export function reroute(pendingPromises = [], eventArguments) {
         new CustomEvent("single-spa:routing-event", getCustomEventDetail())
       );
     } catch (err) {
-      /* We use a setTimeout because if someone else's event handler throws an error, single-spa
-       * needs to carry on. If a listener to the event throws an error, it's their own fault, not
-       * single-spa's.
-       */
       setTimeout(() => {
         throw err;
       });
     }
 
-    /* Setting this allows for subsequent calls to reroute() to actually perform
-     * a reroute instead of just getting queued behind the current reroute call.
-     * We want to do this after the mounting/unmounting is done but before we
-     * resolve the promise for the `reroute` function.
-     */
     appChangeUnderway = false;
 
     if (peopleWaitingOnAppChange.length > 0) {
-      /* While we were rerouting, someone else triggered another reroute that got queued.
-       * So we need reroute again.
-       */
+      // 当我们改道的时候，有人触发了另一条排队的改道。所以我们需要重新改变路线。
       const nextPendingPromises = peopleWaitingOnAppChange;
       peopleWaitingOnAppChange = [];
       reroute(nextPendingPromises);
@@ -260,12 +236,7 @@ export function reroute(pendingPromises = [], eventArguments) {
     return returnValue;
   }
 
-  /* We need to call all event listeners that have been delayed because they were
-   * waiting on single-spa. This includes haschange and popstate events for both
-   * the current run of performAppChanges(), but also all of the queued event listeners.
-   * We want to call the listeners in the same order as if they had not been delayed by
-   * single-spa, which means queued ones first and then the most recent one.
-   */
+  // 调用所有被延迟的事件侦听器
   function callAllEventListeners() {
     pendingPromises.forEach((pendingPromise) => {
       callCapturedEventListeners(pendingPromise.eventArguments);
@@ -274,16 +245,13 @@ export function reroute(pendingPromises = [], eventArguments) {
     callCapturedEventListeners(eventArguments);
   }
 
+  // 获取自定义事件详情
   function getCustomEventDetail(isBeforeChanges = false, extraProperties) {
     const newAppStatuses = {};
     const appsByNewStatus = {
-      // for apps that were mounted
       [MOUNTED]: [],
-      // for apps that were unmounted
       [NOT_MOUNTED]: [],
-      // apps that were forcibly unloaded
       [NOT_LOADED]: [],
-      // apps that attempted to do something but are broken now
       [SKIP_BECAUSE_BROKEN]: [],
     };
 
@@ -332,14 +300,7 @@ export function reroute(pendingPromises = [], eventArguments) {
   }
 }
 
-/**
- * Let's imagine that some kind of delay occurred during application loading.
- * The user without waiting for the application to load switched to another route,
- * this means that we shouldn't bootstrap and mount that application, thus we check
- * twice if that application should be active before bootstrapping and mounting.
- * https://github.com/single-spa/single-spa/issues/524
- *  这里这个两次判断还是很重要的
- */
+// 试着初始化、挂载应用
 function tryToBootstrapAndMount(app, unmountAllPromise) {
   if (shouldBeActive(app)) {
     // 一次判断为true，才会执行初始化

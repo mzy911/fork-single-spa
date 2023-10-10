@@ -8,13 +8,13 @@ import { reasonableTime } from "../applications/timeouts.js";
 import { handleAppError, transformErr } from "../applications/app-errors.js";
 
 /**
- * 1、初始化app
- * 2、更改app.status
+ * 1、初始化 app
+ * 2、更改 app.status
  * 3、在合理的时间内执行bootstrap生命周期函数
  */
 export function toBootstrapPromise(appOrParcel, hardFail) {
   return Promise.resolve().then(() => {
-    // 初始化后直接返回 appOrParcel
+    // 初始化过的 app 直接返回 appOrParcel
     if (appOrParcel.status !== NOT_BOOTSTRAPPED) {
       return appOrParcel;
     }
@@ -27,7 +27,7 @@ export function toBootstrapPromise(appOrParcel, hardFail) {
       return Promise.resolve().then(successfulBootstrap);
     }
 
-    // 执行相应的生命周期
+    // 执行 bootstrap 生命周期
     return reasonableTime(appOrParcel, "bootstrap")
       .then(successfulBootstrap)
       .catch((err) => {
