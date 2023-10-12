@@ -34,16 +34,14 @@ export function triggerAppChange() {
 }
 
 /**
- * 每次切换路由前，将应用分为4大类，
- * 首次加载时执行loadApp
- * 后续的路由切换执行performAppChange
- * 为四大类的应用分别执行相应的操作，比如更改app.status，执行生命周期函数
- * 所以，从这里也可以看出来，single-spa就是一个维护应用的状态机
+ * 更新微应用的状态，触发微前端应用的生命周期函数
+ * 1、手动调用：在进行微前端应用注册和调用start方法的时候，触发reroute执行
+ * 2、自动触发：在navigation-events中监听路由事件发生变化，自动触发reroute执行
  * @param {*} pendingPromises
  * @param {*} eventArguments
  */
 export function reroute(pendingPromises = [], eventArguments) {
-  // 有应用正在切换，新增变更添加到 peopleWaitingOnAppChange 中
+  // 有应用正在切换中、处理中
   if (appChangeUnderway) {
     return new Promise((resolve, reject) => {
       peopleWaitingOnAppChange.push({
@@ -54,7 +52,7 @@ export function reroute(pendingPromises = [], eventArguments) {
     });
   }
 
-  // 将应用分为4大类
+  // 不同状态下的 app
   const {
     appsToUnload, // 需要被移除的
     appsToUnmount, // 需要被卸载的
@@ -62,14 +60,13 @@ export function reroute(pendingPromises = [], eventArguments) {
     appsToMount, // 需要被挂载的
   } = getAppChanges();
 
-  let appsThatChanged,
+  let appsThatChanged, // 路由改变、正在被处理的应用
     navigationIsCanceled = false,
     oldUrl = currentUrl,
     newUrl = (currentUrl = window.location.href);
 
-  // 切换操作、非首次加载
   if (isStarted()) {
-    // 开始切换新的应用
+    // 非首次加载
     appChangeUnderway = true;
 
     // 所有需要被改变的的应用
@@ -78,13 +75,14 @@ export function reroute(pendingPromises = [], eventArguments) {
       appsToUnmount,
       appsToMount
     );
-    // 执行改变
+
+    // 非首次加载，切换路由需要执行 performAppChanges 方法
     return performAppChanges();
   } else {
-    // 去加载
+    // 首次加载应用
     appsThatChanged = appsToLoad;
 
-    // 加载 Apps
+    // 首次加载需要执行 loadApps 方法
     return loadApps();
   }
 
@@ -95,12 +93,13 @@ export function reroute(pendingPromises = [], eventArguments) {
   // 整体返回一个立即resolved的promise，通过微任务来加载apps
   function loadApps() {
     return Promise.resolve().then(() => {
-      // 加载每个子应用，并做一系列的状态变更和验证（比如结果为promise、子应用要导出生命周期函数）
+      // 加载指定应用、挂载生命周期函数、返回 Promise 对象
       const loadPromises = appsToLoad.map(toLoadPromise);
 
       return (
-        // 保证所有加载子应用的微任务执行完成
+        // 保证所有子应用加载完成
         Promise.all(loadPromises)
+          // 调用所有被延迟执行的监听事件
           .then(callAllEventListeners)
           // 在调用start()之前，没有挂载的应用程序，所以我们总是返回[]
           .then(() => [])

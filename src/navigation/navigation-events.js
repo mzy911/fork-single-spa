@@ -4,7 +4,7 @@ import { formatErrorMessage } from "../applications/app-errors.js";
 import { isInBrowser } from "../utils/runtime-environment.js";
 import { isStarted } from "../start.js";
 
-// 捕获导航事件监听器
+// 捕获 "hashchange"、"popstate" 事件
 const capturedEventListeners = {
   hashchange: [],
   popstate: [],
@@ -46,33 +46,30 @@ export function navigateToUrl(obj) {
   const current = parseUri(window.location.href);
   const destination = parseUri(url);
 
-  // url 以 '#' 开头
   if (url.indexOf("#") === 0) {
+    // url 以 '#' 开头
     window.location.hash = destination.hash;
-  }
-  // host 不相同
-  else if (current.host !== destination.host && destination.host) {
+  } else if (current.host !== destination.host && destination.host) {
+    // host 不相同
     if (process.env.BABEL_ENV === "test") {
       return { wouldHaveReloadedThePage: true };
     } else {
       // 在 window.location.href 上赋值
       window.location.href = url;
     }
-  }
-  // pathname、search 不相同
-  else if (
+  } else if (
     destination.pathname === current.pathname &&
     destination.search === current.search
   ) {
+    // pathname、search 不相同
     window.location.hash = destination.hash;
-  }
-  // 触发页面跳转
-  else {
+  } else {
+    // 触发页面跳转
     window.history.pushState(null, null, url);
   }
 }
 
-// 执行捕获的事件监听器 - "hashchange", "popstate"
+// 执行 capturedEventListeners 捕获的 "hashchange"、"popstate" 事件
 export function callCapturedEventListeners(eventArguments) {
   if (eventArguments) {
     const eventType = eventArguments[0].type;
@@ -90,13 +87,16 @@ export function callCapturedEventListeners(eventArguments) {
   }
 }
 
-// 重复的url
+// 仅仅重置url
+// 默认为 false 的布尔值。如果设置为true
+// 调用 history.pushState() 和 history.replaceState() 将不会触发 单spa 更改路由，除非客户端路由被更改。
 let urlRerouteOnly;
 
 export function setUrlRerouteOnly(val) {
   urlRerouteOnly = val;
 }
 
+// 更改路由后去 挂载、更新子应用
 function urlReroute() {
   reroute([], arguments);
 }
