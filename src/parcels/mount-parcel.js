@@ -20,15 +20,16 @@ import { formatErrorMessage } from "../applications/app-errors.js";
 let parcelCount = 0;
 const rootParcels = { parcels: {} };
 
-// This is a public api, exported to users of single-spa
+// 挂载根Parcel、并返回 api 对象
 export function mountRootParcel() {
   return mountParcel.apply(rootParcels, arguments);
 }
 
 export function mountParcel(config, customProps) {
+  // this 指向 rootParcels 对象
   const owningAppOrParcel = this;
 
-  // Validate inputs
+  // 检验 config 对象
   if (!config || (typeof config !== "object" && typeof config !== "function")) {
     throw Error(
       formatErrorMessage(
@@ -73,8 +74,8 @@ export function mountParcel(config, customProps) {
     );
   }
 
+  // 每次执行 mountParcel 自动加一
   const id = parcelCount++;
-
   const passedConfigLoadingFunction = typeof config === "function";
   const configLoadingFunction = passedConfigLoadingFunction
     ? config
@@ -87,7 +88,7 @@ export function mountParcel(config, customProps) {
     status: passedConfigLoadingFunction
       ? LOADING_SOURCE_CODE
       : NOT_BOOTSTRAPPED,
-    customProps,
+    customProps, // 自定义属性
     parentName: toName(owningAppOrParcel),
     unmountThisParcel() {
       return mountPromise
@@ -124,12 +125,13 @@ export function mountParcel(config, customProps) {
     },
   };
 
-  // We return an external representation
+  // 对外返回一个对象
   let externalRepresentation;
 
   // Add to owning app or parcel
   owningAppOrParcel.parcels[id] = parcel;
 
+  // 加载配置
   let loadPromise = configLoadingFunction();
 
   if (!loadPromise || typeof loadPromise.then !== "function") {
@@ -203,6 +205,7 @@ export function mountParcel(config, customProps) {
     const mount = flattenFnArray(config, "mount");
     const unmount = flattenFnArray(config, "unmount");
 
+    // 挂载状态和生命周期函数
     parcel.status = NOT_BOOTSTRAPPED;
     parcel.name = name;
     parcel.bootstrap = bootstrap;

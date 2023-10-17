@@ -20,7 +20,7 @@ export function toUnloadPromise(app) {
   return Promise.resolve().then(() => {
     const unloadInfo = appsToUnload[toName(app)];
 
-    // appsToUnload 中找不到应用、直接返回 app
+    // 已经被移除了、直接返回 app
     if (!unloadInfo) {
       return app;
     }
@@ -62,9 +62,11 @@ export function toUnloadPromise(app) {
 }
 
 /**
- * 1、移除完成，执行一些清理动作，其实就是从appsToUnload数组中移除该app
- * 2、移除生命周期函数，更改 app.status
- * 3、但应用不是真的被移除，后面再激活时不需要重新去下载资源,，只是做一些状态上的变更
+ * 完成移除应用操作
+ * 1、从 appsToUnload 对象中中去掉应用
+ * 2、移除生命周期函数
+ * 3、更新应用状态为 NOT_LOADED
+ * 4、调用 unloadApplication
  * @param app
  * @param unloadInfo
  * */

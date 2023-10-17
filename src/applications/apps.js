@@ -26,13 +26,13 @@ import { assign } from "../utils/assign";
 // 注册的所有微应用
 const apps = [];
 
-// 返回所有状态下的微应用
+// 返回不同状态下的微应用
 export function getAppChanges() {
   // 四种状态
-  const appsToUnload = [], // 需要被移除的应用
-    appsToUnmount = [], // 需要被卸载的应用
-    appsToLoad = [], // 需要被加载的应用
-    appsToMount = []; // 需要被挂载的应用
+  const appsToLoad = [], // 需要被加载的应用
+    appsToUnload = [], // 需要被移除的应用
+    appsToMount = [], // 需要被挂载的应用
+    appsToUnmount = []; // 需要被卸载的应用
 
   // 在 LOAD_ERROR 超时200毫秒后重新尝试下载应用程序
   const currentTime = new Date().getTime();
@@ -104,12 +104,7 @@ export function getAppStatus(appName) {
 /**
  * 注册子应用：两种方式
  * registerApplication('app1', loadApp(url), activeWhen('/app1'), customProps)
- * registerApplication({
- *    name: 'app1',
- *    app: loadApp(url),
- *    activeWhen: activeWhen('/app1'),
- *    customProps: {}
- * })
+ * registerApplication({ name: 'app1', app: loadApp(url), activeWhen: activeWhen('/app1'), customProps: {} })
  * @param {*} appNameOrConfig 应用名称或者应用配置对象
  * @param {*} appOrLoadApp 应用的加载方法，是一个 promise
  * @param {*} activeWhen 判断应用是否激活的一个方法，方法返回 true or false
@@ -121,7 +116,13 @@ export function registerApplication(
   activeWhen,
   customProps
 ) {
-  // 格式化用户传递的应用配置参数
+  // 格式化后的参数：
+  // {
+  //   activeWhen: null, // 字符串 - 激活路径
+  //   customProps: null, // 对象 - 自定义属性
+  //   name: null, // 字符串 - 自定义名称
+  //   loadApp: null // 函数 - 微应用
+  // }
   const registration = sanitizeArguments(
     appNameOrConfig,
     appOrLoadApp,
@@ -164,6 +165,8 @@ export function registerApplication(
   if (isInBrowser) {
     // 如果页面中使用了jQuery，则给jQuery打patch
     ensureJQuerySupport();
+
+    // 加载应用
     reroute();
   }
 }

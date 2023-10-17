@@ -14,15 +14,15 @@ import { handleAppError, transformErr } from "../applications/app-errors.js";
  */
 export function toBootstrapPromise(appOrParcel, hardFail) {
   return Promise.resolve().then(() => {
-    // 初始化过的 app 直接返回 appOrParcel
+    // 始化过的 app 被直接返回
     if (appOrParcel.status !== NOT_BOOTSTRAPPED) {
       return appOrParcel;
     }
 
-    // 更改状态
+    // 将状态改为正在初始化...
     appOrParcel.status = BOOTSTRAPPING;
 
-    // 应用未加载和初始化完成
+    // 初始化完成
     if (!appOrParcel.bootstrap) {
       return Promise.resolve().then(successfulBootstrap);
     }

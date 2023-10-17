@@ -13,8 +13,8 @@ const capturedEventListeners = {
 export const routingEventsListeningTo = ["hashchange", "popstate"];
 
 /**
- * 1、解析传入的 navigate 对象
- * 2、往 window.location 上赋值 href、hash
+ * 1、解析传入的 navigate 对象、解析出 url
+ * 2、给 window.location 上赋值 href、hash
  * 3、触发 window.history.pushState 事件
  * @param obj
  */
@@ -69,7 +69,7 @@ export function navigateToUrl(obj) {
   }
 }
 
-// 执行 capturedEventListeners 捕获的 "hashchange"、"popstate" 事件
+// 手动执行 capturedEventListeners 捕获的 "hashchange"、"popstate" 事件
 export function callCapturedEventListeners(eventArguments) {
   if (eventArguments) {
     const eventType = eventArguments[0].type;
@@ -87,16 +87,14 @@ export function callCapturedEventListeners(eventArguments) {
   }
 }
 
-// 仅仅重置url
-// 默认为 false 的布尔值。如果设置为true
-// 调用 history.pushState() 和 history.replaceState() 将不会触发 单spa 更改路由，除非客户端路由被更改。
+// 是否只更改 url、不调用 reroute 方法
 let urlRerouteOnly;
 
 export function setUrlRerouteOnly(val) {
   urlRerouteOnly = val;
 }
 
-// 更改路由后去 挂载、更新子应用
+// 根据url重新卸载、挂载应用
 function urlReroute() {
   reroute([], arguments);
 }
@@ -105,8 +103,6 @@ function urlReroute() {
  * 通过装饰器模式
  * 1、增强 pushState 和 replaceState 方法
  * 2、除了原生的操作历史记录，还会调用 reroute
- * @param {*} updateState window.history.pushstate/replacestate
- * @param {*} methodName 'pushstate' or 'replacestate'
  */
 function patchedUpdateState(updateState, methodName) {
   return function () {
@@ -117,16 +113,15 @@ function patchedUpdateState(updateState, methodName) {
     // 更新后的 url
     const urlAfter = window.location.href;
 
+    // 判断 urlRerouteOnly 或者 url 是否发生了变化
     if (!urlRerouteOnly || urlBefore !== urlAfter) {
       if (isStarted()) {
-        // 一旦单spa启动，触发人工popstate事件，这样单spa应用就知道路由了发生在不同的应用程序中
+        // 触发 window.addEventListener("hashchange" | "popstate", urlReroute);
         window.dispatchEvent(
           createPopStateEvent(window.history.state, methodName)
         );
       } else {
-        // 在单spa开始之前，不要触发人工popstate事件。
-        // 因为没有单个spa应用程序需要知道路由事件
-        // 在自己的路由器之外。
+        // 在 单spa 开始之前，不要触发人工popstate事件。
         reroute([]);
       }
     }
@@ -135,7 +130,7 @@ function patchedUpdateState(updateState, methodName) {
   };
 }
 
-// 创建 PopState 事件
+// 创建一个 PopStateEvent 事件
 function createPopStateEvent(state, originalMethodName) {
   let evt;
   try {
@@ -154,22 +149,19 @@ function createPopStateEvent(state, originalMethodName) {
  * 监听路由变化
  */
 if (isInBrowser) {
+  // 注册对于 hashchange 和 popstate 事件的监听
   window.addEventListener("hashchange", urlReroute);
   window.addEventListener("popstate", urlReroute);
 
-  // Monkeypatch addEventListener so that we can ensure correct timing
-  /**
-   * 扩展原生的addEventListener和removeEventListener方法
-   * 每次注册事件和事件处理函数都会将事件和处理函数保存下来，当然移除时也会做删除
-   * */
+  // 1、手动扩展原生的 addEventListener 和 removeEventListener 方法
+  // 2、每次注册事件和事件处理函数都会将事件和处理函数保存下来，当然移除时也会做删除
   const originalAddEventListener = window.addEventListener;
   const originalRemoveEventListener = window.removeEventListener;
 
-  // 添加事件监听
+  // 添加事件
   window.addEventListener = function (eventName, fn) {
     if (typeof fn === "function") {
       if (
-        // eventName 只能是 hashchange或popstate && 对应事件的fn注册函数没有注册
         routingEventsListeningTo.indexOf(eventName) >= 0 &&
         !find(capturedEventListeners[eventName], (listener) => listener === fn)
       ) {
@@ -178,15 +170,12 @@ if (isInBrowser) {
         return;
       }
     }
-
-    // 原生方法
     return originalAddEventListener.apply(this, arguments);
   };
 
   // 移除事件
   window.removeEventListener = function (eventName, listenerFn) {
     if (typeof listenerFn === "function") {
-      // 从captureEventListeners数组中移除eventName事件指定的事件处理函数
       if (routingEventsListeningTo.indexOf(eventName) >= 0) {
         capturedEventListeners[eventName] = capturedEventListeners[
           eventName
@@ -194,12 +183,11 @@ if (isInBrowser) {
         return;
       }
     }
-
     // 原生方法
     return originalRemoveEventListener.apply(this, arguments);
   };
 
-  // 增强 pushState 和 replaceState
+  // 拦截-增强 pushState 和 replaceState
   window.history.pushState = patchedUpdateState(
     window.history.pushState,
     "pushState"

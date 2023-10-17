@@ -1,11 +1,11 @@
 import { handleAppError } from "./app-errors.js";
 
 // App statuses
-export const NOT_LOADED = "NOT_LOADED"; // 应用注册了，还未加载
-export const LOADING_SOURCE_CODE = "LOADING_SOURCE_CODE"; // 应用代码正在被拉取
-export const NOT_BOOTSTRAPPED = "NOT_BOOTSTRAPPED"; // 应用已经加载，还未初始化
-export const BOOTSTRAPPING = "BOOTSTRAPPING"; // 生命周期函数已经执行，还未结束
-export const NOT_MOUNTED = "NOT_MOUNTED"; // 应用已经加载和初始化，还未挂载
+export const NOT_LOADED = "NOT_LOADED"; // 已注册未加载：使用 registerApplication 方法注册应用，并赋状态为 NOT_LOADED
+export const LOADING_SOURCE_CODE = "LOADING_SOURCE_CODE"; // 正在加载应用：调用 .. -> reroute -> loadApps -> toLoadPromise -> LOADING_SOURCE_CODE -> app.loadApp
+export const NOT_BOOTSTRAPPED = "NOT_BOOTSTRAPPED"; // 已加载未初始化：调用 ... -> app.loadApp -> NOT_BOOTSTRAPPED
+export const BOOTSTRAPPING = "BOOTSTRAPPING"; // 正在初始化：reroute -> performAppChanges -> tryToBootstrapAndMount -> toBootstrapPromise -> BOOTSTRAPPING
+export const NOT_MOUNTED = "NOT_MOUNTED"; // 已初始化为挂载： 承接上一步 -> ... toBootstrapPromise -> ... -> NOT_MOUNTED
 export const MOUNTING = "MOUNTING"; // 应用正在被挂载，还未结束
 export const MOUNTED = "MOUNTED"; // 应用目前处于激活状态，已经挂载到DOM元素上
 export const UPDATING = "UPDATING"; //
