@@ -12,7 +12,9 @@ let beforeFirstMountFired = false;
 let firstMountFired = false;
 
 /**
- * 执行 mount 生命周期函数
+ * 1、挂载应用
+ * 2、调用 app.mount 钩子函数
+ * 3、更改 appOrParcel.status 状态值
  * @param appOrParcel
  * @param hardFail
  * @returns {Promise<void>}

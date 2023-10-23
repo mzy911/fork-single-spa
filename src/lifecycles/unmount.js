@@ -8,7 +8,9 @@ import { handleAppError, transformErr } from "../applications/app-errors.js";
 import { reasonableTime } from "../applications/timeouts.js";
 
 /**
- * 执行 unmount 生命周期函数
+ * 1、卸载应用
+ * 2、调用 app.unmount 钩子函数
+ * 3、更改 appOrParcel.status 状态值
  * @param {*} appOrParcel => app
  * @param {*} hardFail => 索引
  */

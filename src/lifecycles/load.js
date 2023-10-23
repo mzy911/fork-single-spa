@@ -22,8 +22,9 @@ import { assign } from "../utils/assign.js";
 
 /**
  * 1、加载应用
- * 2、返回注册、加载好的微应用（Promise形式）
- * 3、在 app 对象上挂载生命周期方法
+ * 2、调用 app.loadApp 函数加载
+ * 3、更改 app.status 值
+ * 4、在 app 对象上挂载生命周期方法
  * @param {*} app
  */
 export function toLoadPromise(app) {

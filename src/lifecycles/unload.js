@@ -13,8 +13,8 @@ const appsToUnload = {};
 
 /**
  * 1、移除应用
- * 2、更改应用的状态
- * 3、执行 unload 生命周期函数，执行清理操作
+ * 2、调用 app.unload 钩子函数
+ * 3、更改 appOrParcel.status 状态值
  * */
 export function toUnloadPromise(app) {
   return Promise.resolve().then(() => {

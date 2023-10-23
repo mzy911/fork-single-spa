@@ -13,11 +13,7 @@ export function validLifecycleFn(fn) {
   }
 }
 
-/**
- * 将多个生命周期，转换成 Promise 链式调用形式
- * @param {*} appOrParcel => window.singleSpa，子应用打包后的对象
- * @param {*} lifecycle => 字符串，生命周期名称
- */
+// 将多个生命周期，转换成 Promise 链式调用形式
 export function flattenFnArray(appOrParcel, lifecycle) {
   let fns = appOrParcel[lifecycle] || [];
   fns = Array.isArray(fns) ? fns : [fns];

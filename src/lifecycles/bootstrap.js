@@ -9,8 +9,8 @@ import { handleAppError, transformErr } from "../applications/app-errors.js";
 
 /**
  * 1、初始化 app
- * 2、更改 app.status
- * 3、在合理的时间内执行bootstrap生命周期函数
+ * 2、调用 app.bootstrap 钩子函数
+ * 3、更改 app.status 值
  */
 export function toBootstrapPromise(appOrParcel, hardFail) {
   return Promise.resolve().then(() => {
