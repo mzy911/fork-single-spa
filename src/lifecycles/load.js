@@ -21,10 +21,8 @@ import { getProps } from "./prop.helpers.js";
 import { assign } from "../utils/assign.js";
 
 /**
- * 1、加载应用
- * 2、调用 app.loadApp 函数加载
- * 3、更改 app.status 值
- * 4、在 app 对象上挂载生命周期方法
+ * 1、通过 loadApp(url) 加载子应用
+ * 4、在子应用上挂载生命周期
  * @param {*} app
  */
 export function toLoadPromise(app) {
@@ -46,8 +44,7 @@ export function toLoadPromise(app) {
 
     return (app.loadPromise = Promise.resolve()
       .then(() => {
-        // 1、执行app的加载函数
-        // 2、并给子应用传递 props
+        // 通过 loadApp(url) 加载子应用
         const loadPromise = app.loadApp(getProps(app));
 
         // loadPromise 非 promise 将会报错

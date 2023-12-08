@@ -26,7 +26,7 @@ import { assign } from "../utils/assign";
 // 注册的所有微应用
 const apps = [];
 
-// 返回不同状态下的微应用
+// 返回不同状态下的微应用(toLoad、toUnload、toMount、toUnmount)
 export function getAppChanges() {
   // 四种状态
   const appsToLoad = [], // 需要被加载的应用
@@ -117,12 +117,7 @@ export function registerApplication(
   customProps
 ) {
   // 格式化后的参数：
-  // {
-  //   activeWhen: null, // 字符串 - 激活路径
-  //   customProps: null, // 对象 - 自定义属性
-  //   name: null, // 字符串 - 自定义名称
-  //   loadApp: null // 函数 - 微应用
-  // }
+  // { activeWhen: null, customProps: null, name: null, loadApp: null }
   const registration = sanitizeArguments(
     appNameOrConfig,
     appOrLoadApp,
@@ -176,7 +171,7 @@ export function checkActivityFunctions(location = window.location) {
   return apps.filter((app) => app.activeWhen(location)).map(toName);
 }
 
-// 卸载、删除注册的微应用
+// 删除 apps 中注册的微应用
 export function unregisterApplication(appName) {
   if (apps.filter((app) => toName(app) === appName).length === 0) {
     // appName 没有被注册过将会报错
@@ -312,10 +307,7 @@ function validateRegisterWithArguments(
     );
 }
 
-/**
- * 验证应用配置对象的各个属性是否存在不合法的情况，存在则抛出错误
- * @param {*} config = { name: 'app1', app: function, activeWhen: function, customProps: {} }
- */
+// 校验注册应用的配置对象
 export function validateRegisterWithConfig(config) {
   // 异常判断，应用的配置对象不能是数组或者null
   if (Array.isArray(config) || config === null)

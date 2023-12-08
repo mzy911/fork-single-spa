@@ -8,8 +8,8 @@ import { reasonableTime } from "../applications/timeouts.js";
 import { handleAppError, transformErr } from "../applications/app-errors.js";
 
 /**
- * 1、初始化 app
- * 2、调用 app.bootstrap 钩子函数
+ * 1、初始化 app 在 start 之前调用
+ * 2、调用子应用注入的 app.bootstrap 钩子函数
  * 3、更改 app.status 值
  */
 export function toBootstrapPromise(appOrParcel, hardFail) {
@@ -22,7 +22,7 @@ export function toBootstrapPromise(appOrParcel, hardFail) {
     // 将状态改为正在初始化...
     appOrParcel.status = BOOTSTRAPPING;
 
-    // 初始化完成
+    // 子应用没有注入 app.bootstrap 钩子
     if (!appOrParcel.bootstrap) {
       return Promise.resolve().then(successfulBootstrap);
     }

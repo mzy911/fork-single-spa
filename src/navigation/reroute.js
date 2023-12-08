@@ -34,8 +34,8 @@ export function triggerAppChange() {
 }
 
 /**
- * 挂载、卸载应用
- * 1、手动调用：微应用注册和调用start方法的时触发
+ * 根据路由渲染应用
+ * 1、手动调用：注册微应用、调用 start 方法的时触发
  * 2、自动触发：在 navigation-events 中监听路由事件发生变化时触发
  * @param {*} pendingPromises
  * @param {*} eventArguments
